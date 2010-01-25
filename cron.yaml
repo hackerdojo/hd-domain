@@ -1,0 +1,4 @@
+cron:
+- description: refresh token
+  url: /token/fetch
+  schedule: every 23 hours
