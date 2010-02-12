@@ -8,7 +8,7 @@ def get(keyname):
     return memcache.get(keyname, namespace='keymaster')
     
 def request(keyname):
-    urlfetch.fetch('http://www.thekeymaster.org/%s' % _keys[keyname][0], method='POST', payload=urllib.urlencode({'secret': _keys[keyname][1]}))
+    urlfetch.fetch('http://www.thekeymaster.org/%s' % _keys[keyname][0], method='POST', payload=urllib.urlencode({'secret': _keys[keyname][1]}), deadline=10)
     
 class _Handler(webapp.RequestHandler):
     def get(self, keyname):
