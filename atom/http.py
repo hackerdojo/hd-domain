@@ -34,7 +34,7 @@ different mechanism for making HTTP requests.
 
 __author__ = 'api.jscudder (Jeff Scudder)'
 
-
+from google.appengine.api import urlfetch
 import types
 import os
 import httplib
@@ -171,7 +171,21 @@ class HttpClient(atom.http_interface.GenericHttpClient):
         _send_data_part(data, connection)
 
     # Return the HTTP Response from the server.
-    return connection.getresponse()
+    if connection.port and connection.port != connection.default_port:
+      host = '%s:%s' % (connection.host, connection.port)
+    else:
+      host = connection.host
+    if not connection._url.startswith(connection.protocol):
+      url = '%s://%s%s' % (connection.protocol, host, connection._url)
+    else:
+      url = connection._url
+
+    try:
+      method = connection._method_map[connection._method.upper()]
+    except KeyError:
+      raise ValueError("%r is an unrecognized HTTP method" % connection._method)
+    return httplib.HTTPResponse(urlfetch.fetch(url, connection._body, method, dict(connection.headers),
+                               connection._allow_truncated, connection._follow_redirects, deadline=10))
     
   def _prepare_connection(self, url, headers):
     if not isinstance(url, atom.url.Url):
