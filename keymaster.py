@@ -2,6 +2,23 @@ from google.appengine.api import urlfetch, memcache
 from google.appengine.ext import webapp
 import urllib
 
+## Example usage
+#
+# def needs_key():
+#     key = keymaster.get('my-key')
+#     if key:
+#         # Do something with key
+#     else:
+#         keymaster.request('my-key')
+# 
+# def main():
+#     application = webapp.WSGIApplication([
+#         ('/key/(.+)', keymaster.Handler({
+#             'my-key': ('6f7e21711e29e6d4b4e64daceb2a7348', '2isy046g', needs_key),
+#             'another-key': ('keymaster-hash', 'keymaster-secret', optional_key_arrival_callback),
+#             })),
+#         ], debug=True)
+
 _keys = {}
 
 def get(keyname):
