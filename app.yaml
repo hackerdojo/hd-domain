@@ -1,8 +1,11 @@
-application: hackerdojo-domain
+application: hd-domain
 version: 1
 runtime: python
 api_version: 1
 
 handlers:
+- url: /_km/.*
+  script: keymaster.py
+  login: admin
 - url: .*
   script: main.py
