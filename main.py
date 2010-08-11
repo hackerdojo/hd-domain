@@ -13,6 +13,8 @@ from datetime import datetime, timedelta
 import multipass
 import base64
 
+DOMAIN_ACCOUNT = 'api@hackerdojo.com'
+
 def flatten(l):
     out = []
     for item in l:
@@ -22,57 +24,91 @@ def flatten(l):
             out.append(item)
     return out
 
+class Domain(object):    
+    def __init__(self, domain, token):
+        self.domain = domain
+        self.apps_client = gdata.apps.service.AppsService(domain=domain)
+        self.apps_client.SetClientLoginToken(token)
+        self.groups_client = gdata.apps.groups.service.GroupsService(domain=domain)
+        self.groups_client.SetClientLoginToken(token)
+    
+    def _user_dict(self, user):
+        return {
+            'last_name': user.name.family_name,
+            'first_name': user.name.given_name,
+            'username': user.login.user_name,
+            'suspended': user.login.suspended == 'true',
+            'admin': user.login.admin == 'true'}
+        
+    def groups(self):
+        return [g['groupId'].split('@')[0] for g in self.groups_client.RetrieveAllGroups()]
+    
+    def group(self, group_id):
+        return [m['memberId'].split('@')[0] for m in self.groups_client.RetrieveAllMembers(group_id) if m['memberId'].split('@')[1] == self.domain]
+    
+    def users(self):
+        return [e.title.text for e in flatten([u.entry for u in self.apps_client.GetGeneratorForAllUsers()]) if e.login.suspended == 'false']
+    
+    def user(self, username):
+        return self._user_dict(self.apps_client.RetrieveUser(username))
+    
+    def add_user(self, username, password, first_name, last_name):
+        return self._user_dict(self.apps_client.CreateUser(
+            user_name   = username,
+            password    = password,
+            given_name  = first_name,
+            family_name = last_name))
+
+
 class MainHandler(webapp.RequestHandler):
     def get(self):
-        self.response.out.write("Nothing here. %s" % users.get_current_user())
+        self.response.out.write("Try /users or /groups ... %s" % users.get_current_user())
 
-class BaseHandler(webapp.RequestHandler):
-    def login(self, service=gdata.apps.service.AppsService):
-        self.client = service(domain='hackerdojo.com')
-        self.client.ClientLogin('api@hackerdojo.com', keymaster.get('api@hackerdojo.com'))
-        return True
-    
+
+class BaseHandler(webapp.RequestHandler):  
+    def domain(self):
+        return Domain(DOMAIN_ACCOUNT.split('@')[1], keymaster.get('token'))
+      
     def secure(self):
-        return keymaster.get('api@hackerdojo.com') == self.request.get('secret')
-
-def user_dict(user):
-    return {
-        'last_name': user.name.family_name,
-        'first_name': user.name.given_name,
-        'username': user.login.user_name,
-        'suspended': user.login.suspended == 'true',
-        'admin': user.login.admin == 'true'}
+        return keymaster.get(DOMAIN_ACCOUNT) == self.request.get('secret')
+    
 
 class GroupsHandler(BaseHandler):
     def get(self):
-        if self.login(gdata.apps.groups.service.GroupsService):
-            self.response.out.write(simplejson.dumps(
-                [g['groupId'].split('@')[0] for g in self.client.RetrieveAllGroups()]))
+        groups = self.domain().groups()
+        self.response.out.write(simplejson.dumps(groups))
 
 class GroupHandler(BaseHandler):
     def get(self, group_id):
-        if self.login(gdata.apps.groups.service.GroupsService):
-            self.response.out.write(simplejson.dumps(
-                [m['memberId'].split('@')[0] for m in self.client.RetrieveAllMembers(group_id) if m['memberId'].split('@')[1] == 'hackerdojo.com']))
+        group = self.domain().group(group_id)
+        self.response.out.write(simplejson.dumps(group))
 
 class UsersHandler(BaseHandler):
     def get(self):
-        if self.login():
-            self.response.out.write(simplejson.dumps(
-                [e.title.text for e in flatten([u.entry for u in self.client.GetGeneratorForAllUsers()]) if e.login.suspended == 'false']))        
+        users = self.domain().users()
+        self.response.out.write(simplejson.dumps(users))
     
     def post(self):
-        if self.login() and self.secure():
-            self.response.out.write(simplejson.dumps(user_dict(self.client.CreateUser(
-                user_name=self.request.get('username'),
-                password=self.request.get('password'),
-                given_name=self.request.get('first_name'),
-                family_name=self.request.get('last_name')))))
+        if self.secure():
+            user = self.domain().add_user(
+                username    = self.request.get('username'),
+                password    = self.request.get('password'),
+                first_name  = self.request.get('first_name'),
+                last_name   = self.request.get('last_name'))
+            self.response.out.write(simplejson.dumps(user))
 
 class UserHandler(BaseHandler):
     def get(self, username):
-        if self.login():
-            self.response.out.write(simplejson.dumps(user_dict(self.client.RetrieveUser(username))))
+        user = self.domain().user(username)
+        self.response.out.write(simplejson.dumps(user))
+
+class TokenTask(webapp.RequestHandler):
+    def get(self): self.post()
+    def post(self):
+        client = gdata.apps.service.AppsService(domain=DOMAIN_ACCOUNT.split('@')[1])
+        client.ClientLogin(DOMAIN_ACCOUNT, keymaster.get(DOMAIN_ACCOUNT))
+        token = client.GetClientLoginToken()
+        keymaster.set('token', token)
 
 def Redirect(path):
     class RedirectHandler(webapp.RequestHandler):
@@ -119,6 +155,7 @@ def main():
         ('/users/(.+)', UserHandler),
         ('/groups', GroupsHandler),
         ('/groups/(.+)', GroupHandler),
+        ('/tasks/token', TokenTask),
         ],debug=True)
     util.run_wsgi_app(application)
 

@@ -34,6 +34,9 @@ class Keymaster(db.Model):
 def get(key):
     return Keymaster.decrypt(key)
 
+def set(key, secret):
+    Keymaster.encrypt(key, secret)
+
 class KeymasterHandler(webapp.RequestHandler):
     @util.login_required
     def get(self):

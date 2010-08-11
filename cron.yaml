@@ -1,4 +1,4 @@
 cron:
 - description: refresh token
-  url: /token/fetch
-  schedule: every 23 hours
+  url: /tasks/token
+  schedule: every 20 hours
