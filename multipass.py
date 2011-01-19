@@ -1,9 +1,11 @@
+import array
 import base64
 import hashlib
 import urllib
 import operator
-import array
+
 from django.utils import simplejson
+
 try:
     from Crypto.Cipher import AES
 except ImportError:
@@ -14,20 +16,10 @@ except ImportError:
         encrypt = classmethod(lambda k,x: x)
         decrypt = classmethod(lambda k,x: x)
 
-#message = {
-#  "guid" : "<%= example_user[:guid] %>"
-#  "expires" : "<%= example_user[:expires].to_s(:db) %>",
-#  "display_name" : "<%= example_user[:display_name] %>",
-#  "email" : "<%= example_user[:email] %>",
-#  "url" : "<%= example_user[:url] %>",
-#  "avatar_url" : "<%= example_user[:avatar_url] %>"
-#}
-def token(message):
+def token(message, account_key, api_key):
     block_size = 16
     mode = AES.MODE_CBC
     
-    api_key = "ec6c2d980724dfcd4e408e58f063fc376f13c8a896f506204c598faf2bc2f5c1c098b928e2e87cc22d373eee0893277314bb8253269176b6fb933bffda01db2e"
-    account_key = 'hackerdojo'
     iv = "OpenSSL for Ruby"
     
     json = simplejson.dumps(message, separators=(',',':'))

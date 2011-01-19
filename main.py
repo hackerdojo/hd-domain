@@ -1,17 +1,22 @@
+import base64
+import logging
+import time
+import urllib
+from datetime import datetime
+from datetime import timedelta
 
-from google.appengine.ext import webapp
-from google.appengine.ext.webapp import util
-from google.appengine.api import urlfetch, users
-from django.utils import simplejson
 import gdata.apps.service
 import gdata.apps.groups.service
+from django.utils import simplejson
 from google.appengine.api import memcache
-import logging, urllib
-import keymaster
-import time
-from datetime import datetime, timedelta
+from google.appengine.api import urlfetch
+from google.appengine.api import users
+from google.appengine.ext import webapp
+from google.appengine.ext.webapp import util
+
 import multipass
-import base64
+from shared import keymaster
+
 
 DOMAIN_ACCOUNT = 'api@hackerdojo.com'
 
@@ -126,7 +131,9 @@ class MultipassHandler(webapp.RequestHandler):
                 if ':' in action:
                     action, to = action.split(":")
                     to = base64.b64decode(to)
-                token = multipass.token(dict(email=user.email(), expires=(datetime.now() + timedelta(days=1)).strftime('%Y-%m-%dT%H:%M:%S')))
+                    token = multipass.token(dict(email=user.email(), expires=(datetime.now() + timedelta(days=1)).strftime('%Y-%m-%dT%H:%M:%S')),
+                        api_key="ec6c2d980724dfcd4e408e58f063fc376f13c8a896f506204c598faf2bc2f5c1c098b928e2e87cc22d373eee0893277314bb8253269176b6fb933bffda01db2e",
+                        account_key='hackerdojo')
                 self.redirect("%s?sso=%s" % (to, urllib.quote(token)))
             else:
                 to = base64.b64encode(to)
@@ -143,6 +150,36 @@ class MultipassHandler(webapp.RequestHandler):
                 except ValueError:
                     pass
                 self.redirect(to)
+
+class UservoiceHandler(webapp.RequestHandler):
+    def get(self, action):
+        action = urllib.unquote(action)
+        to = "http://hackerdojo.uservoice.com%s" % self.request.GET.get('return', '/')
+        if action.startswith('login'):
+            user = users.get_current_user()
+            if user:
+                if ':' in action:
+                    action, to = action.split(":")
+                    to = base64.b64decode(to)
+                token = multipass.token(dict(guid=user.email(), email=user.email(), display_name=user.email(), expires=(datetime.now() + timedelta(days=1)).strftime('%Y-%m-%dT%H:%M:%S')),
+                    api_key="455e26692fd067026ffd74bcdd5d1ef1",
+                    account_key='hackerdojo')
+                self.redirect("%s?sso=%s" % (to, urllib.quote(token)))
+            else:
+                to = base64.b64encode(to)
+                self.redirect(users.create_login_url('/auth/uservoice/login:%s' % to))
+        elif action.startswith('logout'):
+            user = users.get_current_user()
+            if user:
+                to = base64.b64encode(to or self.request.referrer)
+                self.redirect(users.create_logout_url('/auth/uservoice/logout:%s' % to))
+            else:
+                try:
+                    action, to = action.split(":")
+                    to = base64.b64decode(to)
+                except ValueError:
+                    pass
+                self.redirect(to)
         
 
 def main():
@@ -151,6 +188,7 @@ def main():
         ('/auth/login', Redirect(users.create_login_url('/'))),
         ('/auth/logout', Redirect(users.create_logout_url('/'))),
         ('/auth/multipass/(.+)', MultipassHandler),
+        ('/auth/uservoice/(.+)', UservoiceHandler),
         ('/users', UsersHandler),
         ('/users/(.+)', UserHandler),
         ('/groups', GroupsHandler),
