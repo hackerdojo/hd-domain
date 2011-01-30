@@ -1,8 +1,10 @@
 import base64
 import logging
+import sys
 import time
 import urllib
 
+sys.path.insert(0, 'gdata.zip')
 import gdata.apps.service
 import gdata.apps.groups.service
 from django.utils import simplejson
