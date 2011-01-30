@@ -2,8 +2,6 @@ import base64
 import logging
 import time
 import urllib
-from datetime import datetime
-from datetime import timedelta
 
 import gdata.apps.service
 import gdata.apps.groups.service
@@ -12,22 +10,14 @@ from google.appengine.api import memcache
 from google.appengine.api import urlfetch
 from google.appengine.api import users
 from google.appengine.ext import webapp
-from google.appengine.ext.webapp import util
+from google.appengine.ext.webapp.util import run_wsgi_app
 
-import multipass
 from shared import keymaster
+from shared import utils
 
 
 DOMAIN_ACCOUNT = 'api@hackerdojo.com'
 
-def flatten(l):
-    out = []
-    for item in l:
-        if isinstance(item, (list, tuple)):
-            out.extend(flatten(item))
-        else:
-            out.append(item)
-    return out
 
 class Domain(object):    
     def __init__(self, domain, token):
@@ -52,7 +42,7 @@ class Domain(object):
         return [m['memberId'].split('@')[0] for m in self.groups_client.RetrieveAllMembers(group_id) if m['memberId'].split('@')[1] == self.domain]
     
     def users(self):
-        return [e.title.text for e in flatten([u.entry for u in self.apps_client.GetGeneratorForAllUsers()]) if e.login.suspended == 'false']
+        return [e.title.text for e in utils.flatten([u.entry for u in self.apps_client.GetGeneratorForAllUsers()]) if e.login.suspended == 'false']
     
     def user(self, username):
         return self._user_dict(self.apps_client.RetrieveUser(username))
@@ -72,7 +62,7 @@ class MainHandler(webapp.RequestHandler):
 
 class BaseHandler(webapp.RequestHandler):  
     def domain(self):
-        return Domain(DOMAIN_ACCOUNT.split('@')[1], keymaster.get('token'))
+        return Domain(DOMAIN_ACCOUNT.split('@')[1], get_token())
       
     def secure(self):
         return keymaster.get(DOMAIN_ACCOUNT) == self.request.get('secret')
@@ -107,95 +97,35 @@ class UserHandler(BaseHandler):
         user = self.domain().user(username)
         self.response.out.write(simplejson.dumps(user))
 
+def get_token():
+    token = memcache.get('token')
+    if token is None:
+        token = refresh_token()
+    return token
+
+def refresh_token():
+    client = gdata.apps.service.AppsService(domain=DOMAIN_ACCOUNT.split('@')[1])
+    client.ClientLogin(DOMAIN_ACCOUNT, keymaster.get(DOMAIN_ACCOUNT))
+    token = client.GetClientLoginToken()
+    memcache.set('token', token)
+    return token
+
 class TokenTask(webapp.RequestHandler):
     def get(self): self.post()
     def post(self):
-        client = gdata.apps.service.AppsService(domain=DOMAIN_ACCOUNT.split('@')[1])
-        client.ClientLogin(DOMAIN_ACCOUNT, keymaster.get(DOMAIN_ACCOUNT))
-        token = client.GetClientLoginToken()
-        keymaster.set('token', token)
+        refresh_token()
 
-def Redirect(path):
-    class RedirectHandler(webapp.RequestHandler):
-        def get(self):
-            self.redirect(path)
-    return RedirectHandler
-
-class MultipassHandler(webapp.RequestHandler):
-    def get(self, action):
-        action = urllib.unquote(action)
-        to = self.request.GET.get('to')
-        if action.startswith('login'):
-            user = users.get_current_user()
-            if user:
-                if ':' in action:
-                    action, to = action.split(":")
-                    to = base64.b64decode(to)
-                    token = multipass.token(dict(email=user.email(), expires=(datetime.now() + timedelta(days=1)).strftime('%Y-%m-%dT%H:%M:%S')),
-                        api_key="ec6c2d980724dfcd4e408e58f063fc376f13c8a896f506204c598faf2bc2f5c1c098b928e2e87cc22d373eee0893277314bb8253269176b6fb933bffda01db2e",
-                        account_key='hackerdojo')
-                self.redirect("%s?sso=%s" % (to, urllib.quote(token)))
-            else:
-                to = base64.b64encode(to)
-                self.redirect(users.create_login_url('/auth/multipass/login:%s' % to))
-        elif action.startswith('logout'):
-            user = users.get_current_user()
-            if user:
-                to = base64.b64encode(to or self.request.referrer)
-                self.redirect(users.create_logout_url('/auth/multipass/logout:%s' % to))
-            else:
-                try:
-                    action, to = action.split(":")
-                    to = base64.b64decode(to)
-                except ValueError:
-                    pass
-                self.redirect(to)
-
-class UservoiceHandler(webapp.RequestHandler):
-    def get(self, action):
-        action = urllib.unquote(action)
-        to = "http://hackerdojo.uservoice.com%s" % self.request.GET.get('return', '/')
-        if action.startswith('login'):
-            user = users.get_current_user()
-            if user:
-                if ':' in action:
-                    action, to = action.split(":")
-                    to = base64.b64decode(to)
-                token = multipass.token(dict(guid=user.email(), email=user.email(), display_name=user.email(), expires=(datetime.now() + timedelta(days=1)).strftime('%Y-%m-%dT%H:%M:%S')),
-                    api_key="455e26692fd067026ffd74bcdd5d1ef1",
-                    account_key='hackerdojo')
-                self.redirect("%s?sso=%s" % (to, urllib.quote(token)))
-            else:
-                to = base64.b64encode(to)
-                self.redirect(users.create_login_url('/auth/uservoice/login:%s' % to))
-        elif action.startswith('logout'):
-            user = users.get_current_user()
-            if user:
-                to = base64.b64encode(to or self.request.referrer)
-                self.redirect(users.create_logout_url('/auth/uservoice/logout:%s' % to))
-            else:
-                try:
-                    action, to = action.split(":")
-                    to = base64.b64decode(to)
-                except ValueError:
-                    pass
-                self.redirect(to)
-        
 
 def main():
     application = webapp.WSGIApplication([
         ('/', MainHandler),
-        ('/auth/login', Redirect(users.create_login_url('/'))),
-        ('/auth/logout', Redirect(users.create_logout_url('/'))),
-        ('/auth/multipass/(.+)', MultipassHandler),
-        ('/auth/uservoice/(.+)', UservoiceHandler),
         ('/users', UsersHandler),
         ('/users/(.+)', UserHandler),
         ('/groups', GroupsHandler),
         ('/groups/(.+)', GroupHandler),
         ('/tasks/token', TokenTask),
         ],debug=True)
-    util.run_wsgi_app(application)
+    run_wsgi_app(application)
 
 if __name__ == '__main__':
     main()

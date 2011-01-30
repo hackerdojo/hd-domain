@@ -10,5 +10,7 @@ handlers:
 - url: /_km/.*
   script: shared/keymaster.py
   login: admin
+- url: /auth/.*
+  script: auth.py
 - url: .*
   script: main.py
