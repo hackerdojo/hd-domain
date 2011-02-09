@@ -2,19 +2,19 @@ import base64
 import logging
 import sys
 import time
-import urllib
 
 sys.path.insert(0, 'gdata.zip')
 import gdata.apps.service
 import gdata.apps.groups.service
 from django.utils import simplejson
 from google.appengine.api import memcache
-from google.appengine.api import urlfetch
+
 from google.appengine.api import users
+from google.appengine.api import urlfetch
 from google.appengine.ext import webapp
 from google.appengine.ext.webapp.util import run_wsgi_app
 
-from shared import keymaster
+from shared.lib import keymaster
 from shared import utils
 
 
@@ -44,7 +44,8 @@ class Domain(object):
         return [m['memberId'].split('@')[0] for m in self.groups_client.RetrieveAllMembers(group_id) if m['memberId'].split('@')[1] == self.domain]
     
     def users(self):
-        return [e.title.text for e in utils.flatten([u.entry for u in self.apps_client.GetGeneratorForAllUsers()]) if e.login.suspended == 'false']
+        return [e.title.text for e in utils.flatten(
+            [u.entry for u in self.apps_client.GetGeneratorForAllUsers()]) if e.login.suspended == 'false']
     
     def user(self, username):
         return self._user_dict(self.apps_client.RetrieveUser(username))
