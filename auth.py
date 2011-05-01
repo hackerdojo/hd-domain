@@ -10,6 +10,13 @@ from google.appengine.ext.webapp.util import run_wsgi_app
 import multipass
 from shared import utils
 
+USERVOICE_DOMAIN = 'hackerdojo.uservoice.com'
+USERVOICE_API_KEY = '455e26692fd067026ffd74bcdd5d1ef1'
+USERVOICE_ACCOUNT = 'hackerdojo'
+
+MULTIPASS_ACCOUNT = 'hackerdojo'
+MULTIPASS_API_KEY = 'ec6c2d980724dfcd4e408e58f063fc376f13c8a896f506204c598faf2bc2f5c1c098b928e2e87cc22d373eee0893277314bb8253269176b6fb933bffda01db2e'
+
 class MultipassHandler(webapp.RequestHandler):
     def get(self, action):
         action = urllib.unquote(action)
@@ -21,8 +28,8 @@ class MultipassHandler(webapp.RequestHandler):
                     action, to = action.split(":")
                     to = base64.b64decode(to)
                     token = multipass.token(dict(email=user.email(), expires=(datetime.now() + timedelta(days=1)).strftime('%Y-%m-%dT%H:%M:%S')),
-                        api_key="ec6c2d980724dfcd4e408e58f063fc376f13c8a896f506204c598faf2bc2f5c1c098b928e2e87cc22d373eee0893277314bb8253269176b6fb933bffda01db2e",
-                        account_key='hackerdojo')
+                        api_key=MULTIPASS_API_KEY,
+                        account_key=MULTIPASS_ACCOUNT)
                 self.redirect("%s?sso=%s" % (to, urllib.quote(token)))
             else:
                 to = base64.b64encode(to)
@@ -43,7 +50,7 @@ class MultipassHandler(webapp.RequestHandler):
 class UservoiceHandler(webapp.RequestHandler):
     def get(self, action):
         action = urllib.unquote(action)
-        to = "http://hackerdojo.uservoice.com%s" % self.request.GET.get('return', '/')
+        to = "http://%s%s" % (USERVOICE_DOMAIN, self.request.GET.get('return', '/'))
         if action.startswith('login'):
             user = users.get_current_user()
             if user:
@@ -51,8 +58,8 @@ class UservoiceHandler(webapp.RequestHandler):
                     action, to = action.split(":")
                     to = base64.b64decode(to)
                 token = multipass.token(dict(guid=user.email(), email=user.email(), display_name=user.email(), expires=(datetime.now() + timedelta(days=1)).strftime('%Y-%m-%dT%H:%M:%S')),
-                    api_key="455e26692fd067026ffd74bcdd5d1ef1",
-                    account_key='hackerdojo')
+                    api_key=USERVOICE_API_KEY,
+                    account_key=USERVOICE_ACCOUNT)
                 self.redirect("%s?sso=%s" % (to, urllib.quote(token)))
             else:
                 to = base64.b64encode(to)
