@@ -57,6 +57,11 @@ class Domain(object):
             given_name  = first_name,
             family_name = last_name))
 
+    def restore_user(self, username):
+        return self._user_dict(self.apps_client.RestoreUser(user_name = username))
+
+    def suspend_user(self, username):
+        return self._user_dict(self.apps_client.SuspendUser(user_name = username))
 
 class MainHandler(webapp.RequestHandler):
     def get(self):
@@ -95,6 +100,24 @@ class UsersHandler(BaseHandler):
                 last_name   = self.request.get('last_name'))
             self.response.out.write(simplejson.dumps(user))
 
+class SuspendHandler(BaseHandler):
+    def get(self, username):
+        self.post(username)
+    
+    def post(self, username):
+        if self.secure():
+            user = self.domain().suspend_user(username = username)
+            self.response.out.write(simplejson.dumps(user))
+
+class RestoreHandler(BaseHandler):
+    def get(self, username):
+        self.post(username)
+    
+    def post(self, username):
+        if self.secure():
+            user = self.domain().restore_user(username = username)
+            self.response.out.write(simplejson.dumps(user))
+
 class UserHandler(BaseHandler):
     def get(self, username):
         user = self.domain().user(username)
@@ -122,6 +145,8 @@ class TokenTask(webapp.RequestHandler):
 def main():
     application = webapp.WSGIApplication([
         ('/', MainHandler),
+        ('/restore/(.+)', RestoreHandler),
+        ('/suspend/(.+)', SuspendHandler),
         ('/users', UsersHandler),
         ('/users/(.+)', UserHandler),
         ('/groups', GroupsHandler),
