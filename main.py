@@ -106,7 +106,7 @@ class SuspendHandler(BaseHandler):
     
     def post(self, username):
         if self.secure():
-            user = self.domain().suspend_user(username = username)
+            user = self.domain().suspend_user(username=username)
             self.response.out.write(simplejson.dumps(user))
 
 class RestoreHandler(BaseHandler):
@@ -115,7 +115,7 @@ class RestoreHandler(BaseHandler):
     
     def post(self, username):
         if self.secure():
-            user = self.domain().restore_user(username = username)
+            user = self.domain().restore_user(username=username)
             self.response.out.write(simplejson.dumps(user))
 
 class UserHandler(BaseHandler):
