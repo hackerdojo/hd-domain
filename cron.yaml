@@ -2,3 +2,8 @@ cron:
 - description: refresh token
   url: /tasks/token
   schedule: every 20 hours
+
+- description: populate cache if needbe
+  url: /users
+  schedule: every 5 minutes
+

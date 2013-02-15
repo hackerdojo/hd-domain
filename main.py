@@ -88,11 +88,17 @@ class GroupHandler(BaseHandler):
 
 class UsersHandler(BaseHandler):
     def get(self):
-        users = self.domain().users()
-        self.response.out.write(simplejson.dumps(users))
+        users_str = memcache.get('users_str')
+        if not users_str:
+            users = self.domain().users()
+            users_str = simplejson.dumps(users)
+            memcache.set('users_str', users_str)
+        self.response.out.write(users_str)
     
     def post(self):
         if self.secure():
+            memcache.delete('users_str')
+
             user = self.domain().add_user(
                 username    = self.request.get('username'),
                 password    = self.request.get('password'),
@@ -100,12 +106,21 @@ class UsersHandler(BaseHandler):
                 last_name   = self.request.get('last_name'))
             self.response.out.write(simplejson.dumps(user))
 
+
+class UsersNoCacheHandler(BaseHandler):
+    def get(self):
+        users = self.domain().users()
+        users_str = simplejson.dumps(users)
+        memcache.set('users_str', users_str)
+        self.response.out.write(users_str)
+
 class SuspendHandler(BaseHandler):
     def get(self, username):
         self.post(username)
     
     def post(self, username):
         if self.secure():
+            memcache.delete('users_str')            
             user = self.domain().suspend_user(username=username)
             self.response.out.write(simplejson.dumps(user))
 
@@ -115,6 +130,7 @@ class RestoreHandler(BaseHandler):
     
     def post(self, username):
         if self.secure():
+            memcache.delete('users_str')            
             user = self.domain().restore_user(username=username)
             self.response.out.write(simplejson.dumps(user))
 
@@ -142,11 +158,13 @@ class TokenTask(webapp.RequestHandler):
         refresh_token()
 
 
+
 def main():
     application = webapp.WSGIApplication([
         ('/', MainHandler),
         ('/restore/(.+)', RestoreHandler),
         ('/suspend/(.+)', SuspendHandler),
+        ('/users_nocache', UsersNoCacheHandler),
         ('/users', UsersHandler),
         ('/users/(.+)', UserHandler),
         ('/groups', GroupsHandler),

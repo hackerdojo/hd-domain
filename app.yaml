@@ -14,3 +14,7 @@ handlers:
   script: auth.py
 - url: .*
   script: main.py
+
+builtins:
+- deferred: on
+
