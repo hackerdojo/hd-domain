@@ -1,1 +1,2 @@
 google-api-python-client == 1.4
+httplib2 == 0.9.1

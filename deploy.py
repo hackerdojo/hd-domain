@@ -19,20 +19,41 @@ def make_name(external):
   module_name = "%s_v%s" % (name, version)
   return (name, comparison, version, module_name)
 
+""" Compares two version strings.
+version1: The first version string.
+version2: The second version string.
+comparator: A string comparator to compare the versions with.
+Returns: True or False, depending on the value of the comparison. """
+def compare_versions(version1, version2, comparator):
+  parts1 = [int(x) for x in version1.split('.')]
+  parts2 = [int(x) for x in version2.split('.')]
+
+  # Pad the shorter version with zeros ...
+  length_diff = len(parts1) - len(parts2)
+  if length_diff > 0:
+    parts2.extend([0] * length_diff)
+  elif length_diff < 0:
+    parts1.extend([0] * (-length_diff))
+
+  for i, part in enumerate(parts1):
+    if part == parts2[i]:
+      # These parts are equal, so bump the comparison to the next part.
+      continue
+
+    ret = eval("%d %s %d" % (part, comparator, parts2[i]))
+
+    if not ret:
+      return False
+    else:
+      return True
+
+  # If we got here, then they were equal. That's great if we wanted them to be.
+  return "=" in comparator
 
 """ Make sure that we have the proper version of the required external library.
 external: The external dependency to check for.
 """
 def get_external(external):
-  """ Compares versions.
-  installed: The version installed.
-  needed: The version required.
-  comparator: The logical operand to use.
-  Returns: True if the installed version fits the requirements, False otherwise.
-  """
-  def compare_versions(installed, needed, comparator):
-    return eval("%s %s %s" % (installed, comparator, needed))
-
   try:
     name, comparison, version, module_name = make_name(external)
   except ValueError:

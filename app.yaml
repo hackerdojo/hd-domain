@@ -1,4 +1,4 @@
-application: hd-domain
+application: hd-domain-hrd
 version: 1
 runtime: python27
 api_version: 1
@@ -8,14 +8,14 @@ handlers:
 - url: /robots.txt
   static_files: robots.txt
   upload: robots.txt
-- url: /_km/.*
-  script: shared/lib/keymaster.py
-  login: admin
 - url: /auth/.*
   script: auth.py
 - url: .*
-  script: main.py
+  script: main.app
 
 builtins:
 - deferred: on
 
+libraries:
+- name: pycrypto
+  version: latest
