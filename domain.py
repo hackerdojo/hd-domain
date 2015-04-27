@@ -13,9 +13,8 @@ from google.appengine.api.app_identity import get_application_id
 
 
 class Domain:
-  _OAUTH_SCOPES = { \
-      "users": "https://www.googleapis.com/auth/admin.directory.user",
-      "groups": "https://www.googleapis.com/auth/admin.directory.group"}
+  _OAUTH_SCOPES = ["https://www.googleapis.com/auth/admin.directory.user",
+                   "https://www.googleapis.com/auth/admin.directory.group"]
   _CLIENT_EMAIL = \
       "1007593845094-0f7l6inabhc81ra9cm2d5ib7iutldepu" \
       "@developer.gserviceaccount.com"
@@ -23,29 +22,28 @@ class Domain:
   """ domain: The google apps domain. """
   def __init__(self, domain):
     self.domain = domain
-    self._authorize_http_instances()
+    self._authorize_http_instance()
 
     self.users_service = build("admin", "directory_v1",
-                               http=self.authorized_https["users"])
+                               http=self.authorized_http)
     self.groups_service = build("admin", "directory_v1",
-                               http=self.authorized_https["groups"])
+                                http=self.authorized_http)
     self.users = self.users_service.users()
     self.groups = self.groups_service.groups()
 
-  """ Creates and authorizes httplib2.Http instances with oauth2. """
-  def _authorize_http_instances(self):
+  """ Creates and authorizes an httplib2.Http instance with oauth2. """
+  def _authorize_http_instance(self):
     # Get the key.
     try:
       private_key = file("hd-domain-hrd.pem", "rb").read()
     except IOError:
       raise IOError("Could not find hd-domain-hrd.pem file. Did you create it?")
 
-    self.authorized_https = {}
-    for key, scope in self._OAUTH_SCOPES.iteritems():
-      logging.debug("Authorizing for scope '%s'." % (scope))
-      credentials = SignedJwtAssertionCredentials(self._CLIENT_EMAIL,
-          private_key, scope=scope, sub="daniel.petti@hackerdojo.com")
-      self.authorized_https[key] = credentials.authorize(httplib2.Http())
+    logging.debug("Authorizing for scopes: %s." % (self._OAUTH_SCOPES))
+    credentials = SignedJwtAssertionCredentials(self._CLIENT_EMAIL,
+        private_key, scope=self._OAUTH_SCOPES,
+        sub="daniel.petti@hackerdojo.com")
+    self.authorized_http = credentials.authorize(httplib2.Http())
 
   """ Stores the critical information from a user response in a nice dict.
   Returns: A dict with the following keys:
