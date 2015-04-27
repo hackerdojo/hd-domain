@@ -24,7 +24,7 @@ class MainHandler(webapp2.RequestHandler):
 
 class BaseHandler(webapp2.RequestHandler):
   # GAE apps that are allowed to use this API.
-  _AUTHORIZED_APPS = ("hd-signup-hrd", "signup-dev", "hd-events")
+  _AUTHORIZED_APPS = ("hd-signup-hrd", "signup-dev", "hd-events-hrd")
 
   """ Meant to be used as a decorator for functions that should only be accessed
   by authorized people and apps. The wrapped function checks the authorization,
