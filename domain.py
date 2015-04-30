@@ -24,12 +24,12 @@ class Domain:
     self.domain = domain
     self._authorize_http_instance()
 
-    self.users_service = build("admin", "directory_v1",
+    self.service = build("admin", "directory_v1",
                                http=self.authorized_http)
-    self.groups_service = build("admin", "directory_v1",
-                                http=self.authorized_http)
-    self.users = self.users_service.users()
-    self.groups = self.groups_service.groups()
+
+    self.users = self.service.users()
+    self.groups = self.service.groups()
+    self.members = self.service.members()
 
   """ Creates and authorizes an httplib2.Http instance with oauth2. """
   def _authorize_http_instance(self):
@@ -108,13 +108,20 @@ class Domain:
 
     return [g["email"].split('@')[0] for g in groups]
 
-  """ Gets information for a specific group.
+  """ Gets the users in a specific group.
   group_id: The first part of the group's email. (without the "@hackerdojo")
-  Returns: A dictionary containing information about the group, including its
-           name, email, and id. """
-  def get_group(self, group_id):
+  Returns: A dictionary containing usernames for all the members of the group.
+  """
+  def get_group_members(self, group_id):
     email = "%s@%s" % (group_id, self.domain)
-    return self.groups.get(groupKey=email).execute()
+    request = self.members.list(groupKey=email)
+    pages = self.__get_all_pages(request, self.members.list_next)
+
+    emails = []
+    for page in pages:
+      emails.extend([member["email"] for member in page["members"]])
+
+    return [email.split("@")[0] for email in emails]
 
   """ Lists all the users on the domain.
   Returns: A list of the usernames of all the non-suspended users. """

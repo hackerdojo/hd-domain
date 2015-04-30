@@ -64,7 +64,7 @@ class GroupsHandler(BaseHandler):
 class GroupHandler(BaseHandler):
   @BaseHandler.restricted
   def get(self, group_id):
-    group = self.domain().get_group(group_id)
+    group = self.domain().get_group_members(group_id)
     self.response.out.write(json.dumps(group))
 
 
