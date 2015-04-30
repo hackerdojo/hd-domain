@@ -3,13 +3,21 @@
 
 import json
 import logging
+import os
+
+from apiclient.discovery import _add_query_parameter
+from apiclient.discovery import build_from_document
+from apiclient.discovery import DISCOVERY_URI
+from apiclient.errors import HttpError
+
+from google.appengine.api.app_identity import get_application_id
+from google.appengine.api import memcache
 
 import httplib2
 
-from apiclient.discovery import build
 from oauth2client.client import SignedJwtAssertionCredentials
 
-from google.appengine.api.app_identity import get_application_id
+import uritemplate
 
 
 class Domain:
@@ -22,17 +30,57 @@ class Domain:
   """ domain: The google apps domain. """
   def __init__(self, domain):
     self.domain = domain
-    self._authorize_http_instance()
 
-    self.service = build("admin", "directory_v1",
-                               http=self.authorized_http)
+    self.__authorize_http_instance()
+
+    discovery_doc = self.__get_discovery_doc("admin", "directory_v1",
+                                             http=self.authorized_http)
+    self.service = build_from_document(discovery_doc,
+                                       http=self.authorized_http)
 
     self.users = self.service.users()
     self.groups = self.service.groups()
     self.members = self.service.members()
 
+  """ Retrieves and stores the discovery document for a given API so that we
+  don't have to do it every time a request comes in. Most of the code is taken
+  from here:
+  https://cloud.google.com/appengine/articles/
+          efficient_use_of_discovery_based_apis
+  If a discovery doc is already in the memcache, it uses that instead.
+  It takes the same arguments as the discovery build function.
+  Returns: The contents of the discovery doc. """
+  def __get_discovery_doc(self, service_name, version, http=None,
+                            discovery_service_url=DISCOVERY_URI):
+    # Returned a cached copy if we have it.
+    cached = memcache.get("discovery_doc")
+    if cached:
+      return cached
+    logging.info("Cache miss in discovery document.")
+
+    params = {'api': service_name, 'apiVersion': version}
+    requested_url = uritemplate.expand(discovery_service_url, params)
+
+    # REMOTE_ADDR is defined by the CGI spec [RFC3875] as the environment
+    # variable that contains the network address of the client sending the
+    # request. If it exists then add that to the request for the discovery
+    # document to avoid exceeding the quota on discovery requests.
+    if 'REMOTE_ADDR' in os.environ:
+      requested_url = _add_query_parameter(requested_url, 'userIp',
+                                          os.environ['REMOTE_ADDR'])
+
+    http = http or httplib2.Http()
+    resp, content = http.request(requested_url)
+    if resp.status >= 400:
+      raise HttpError(resp, content, uri=requested_url)
+
+    # Store it in the memcache.
+    memcache.set("discovery_doc", content, time=60 * 60 * 24)
+
+    return content
+
   """ Creates and authorizes an httplib2.Http instance with oauth2. """
-  def _authorize_http_instance(self):
+  def __authorize_http_instance(self):
     # Get the key.
     try:
       private_key = file("hd-domain-hrd.pem", "rb").read()
@@ -43,7 +91,8 @@ class Domain:
     credentials = SignedJwtAssertionCredentials(self._CLIENT_EMAIL,
         private_key, scope=self._OAUTH_SCOPES,
         sub="daniel.petti@hackerdojo.com")
-    self.authorized_http = credentials.authorize(httplib2.Http())
+
+    self.authorized_http = credentials.authorize(httplib2.Http(cache=memcache))
 
   """ Stores the critical information from a user response in a nice dict.
   Returns: A dict with the following keys:

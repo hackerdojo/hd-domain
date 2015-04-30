@@ -42,6 +42,7 @@ class DomainTests(unittest.TestCase):
     # Create and activate testbed instance.
     self.testbed = testbed.Testbed()
     self.testbed.activate()
+    self.testbed.init_memcache_stub()
 
     # The basic names that we will use to test things.
     self.first_name = "Testy"
@@ -119,3 +120,18 @@ class DomainTests(unittest.TestCase):
 
     user_data = self.domain.restore_user(username)
     self.assertFalse(user_data["suspended"])
+
+  """ Tests that the authentication caching works. """
+  def test_cacheing(self):
+    self.__make_test_users(1)
+    username = "%s%s.%s" % (self.first_name.lower(), 0, self.last_name.lower())
+    user_data = self.domain.get_user(username)
+    self.assertEqual(username, user_data["username"])
+
+    # Make another domain object, which should force it to use the cached copy
+    # of the discovery document.
+    domain2 = domain.Domain("hackerdojo.com")
+    domain2.remove_user(username)
+    # Remove the user from the list of users so it doesn't try to delete it
+    # twice.
+    self.users.pop()
