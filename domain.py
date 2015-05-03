@@ -11,7 +11,7 @@ from apiclient.discovery import DISCOVERY_URI
 from apiclient.errors import HttpError
 
 from google.appengine.api.app_identity import get_application_id
-from google.appengine.api import memcache
+from google.appengine.api import memcache, urlfetch
 
 import httplib2
 
@@ -29,10 +29,12 @@ class Domain:
 
   """ domain: The google apps domain. """
   def __init__(self, domain):
+    # Make it wait a little longer before aborting fetches.
+    urlfetch.set_default_fetch_deadline(30)
+
     self.domain = domain
 
     self.__authorize_http_instance()
-
     discovery_doc = self.__get_discovery_doc("admin", "directory_v1",
                                              http=self.authorized_http)
     self.service = build_from_document(discovery_doc,
