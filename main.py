@@ -43,8 +43,11 @@ class BaseHandler(webapp2.RequestHandler):
       logging.debug("Request from app '%s'." % (app_id))
       logging.debug("Request from taskqueue '%s'." % (queue_name))
 
-      # Make an automatic exception if we are running on the local dev server.
-      if "Development" in os.environ["SERVER_SOFTWARE"]:
+      if users.is_current_user_admin():
+        # Allow admins through, no questions asked.
+        logging.info("Allowing admin access.")
+      elif "Development" in os.environ["SERVER_SOFTWARE"]:
+        # Make an automatic exception if we are running on the local dev server.
         logging.info("Dev server detected. Not restricting access.")
       elif (app_id not in self._AUTHORIZED_APPS and
             queue_name not in self._AUTHORIZED_QUEUES):
