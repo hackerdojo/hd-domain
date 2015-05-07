@@ -1,0 +1,7 @@
+total_storage_limit: 120M
+
+queue:
+- name: retry-queue
+  rate: 1/m
+  retry_parameters:
+    min_backoff_seconds: 30

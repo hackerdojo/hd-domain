@@ -12,6 +12,7 @@ from google.appengine.api import urlfetch
 import webapp2
 
 from domain import Domain
+import auto_retry
 
 
 DOMAIN_ACCOUNT = 'api@hackerdojo.com'
@@ -25,6 +26,8 @@ class MainHandler(webapp2.RequestHandler):
 class BaseHandler(webapp2.RequestHandler):
   # GAE apps that are allowed to use this API.
   _AUTHORIZED_APPS = ("hd-signup-hrd", "signup-dev", "hd-events-hrd")
+  # Names of task queues that are allowed to use this API.
+  _AUTHORIZED_QUEUES = ("retry-queue")
 
   """ Meant to be used as a decorator for functions that should only be accessed
   by authorized people and apps. The wrapped function checks the authorization,
@@ -35,13 +38,16 @@ class BaseHandler(webapp2.RequestHandler):
   def restricted(cls, function):
     """ The wrapper function. """
     def wrapper(self, *args, **kwargs):
-      app_id = self.request.headers.get('X-Appengine-Inbound-Appid', None)
+      app_id = self.request.headers.get("X-Appengine-Inbound-Appid", "None")
+      queue_name = self.request.headers.get("X-AppEngine-QueueName", "None")
       logging.debug("Request from app '%s'." % (app_id))
+      logging.debug("Request from taskqueue '%s'." % (queue_name))
 
       # Make an automatic exception if we are running on the local dev server.
       if "Development" in os.environ["SERVER_SOFTWARE"]:
         logging.info("Dev server detected. Not restricting access.")
-      elif app_id not in self._AUTHORIZED_APPS:
+      elif (app_id not in self._AUTHORIZED_APPS and
+            queue_name not in self._AUTHORIZED_QUEUES):
         # Unauthorized.
         logging.warning("Denying request from unauthorized source.")
         self.abort(403)
@@ -78,6 +84,8 @@ class UsersHandler(BaseHandler):
       memcache.set('users_str', users_str)
     self.response.out.write(users_str)
 
+  """ Add a new user. """
+  @auto_retry.retry_on_error
   @BaseHandler.restricted
   def post(self):
     memcache.delete('users_str')
@@ -100,10 +108,12 @@ class UsersNoCacheHandler(BaseHandler):
 
 
 class SuspendHandler(BaseHandler):
+  @auto_retry.retry_on_error
   @BaseHandler.restricted
   def get(self, username):
     self.post(username)
 
+  @auto_retry.retry_on_error
   @BaseHandler.restricted
   def post(self, username):
     memcache.delete('users_str')
@@ -112,10 +122,12 @@ class SuspendHandler(BaseHandler):
 
 
 class RestoreHandler(BaseHandler):
+  @auto_retry.retry_on_error
   @BaseHandler.restricted
   def get(self, username):
     self.post(username)
 
+  @auto_retry.retry_on_error
   @BaseHandler.restricted
   def post(self, username):
     memcache.delete('users_str')
