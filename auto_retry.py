@@ -4,6 +4,7 @@ errors. """
 
 import httplib
 import logging
+import socket
 import urllib
 import urlparse
 
@@ -22,7 +23,7 @@ def retry_on_error(function):
     # Try it and see if it works.
     try:
       return function(self, *args, **kwargs)
-    except (httplib.error, urlfetch.DeadlineExceededError) as error:
+    except (httplib.HTTPException, urlfetch.DeadlineExceededError, socket.error) as error:
       logging.exception("Failed to make request, retrying later.")
 
       _, _, _, query_string, _ = urlparse.urlsplit(self.request.url)
