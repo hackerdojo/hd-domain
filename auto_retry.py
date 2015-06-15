@@ -11,6 +11,7 @@ import urlparse
 import webapp2
 
 from google.appengine.api import taskqueue, urlfetch
+from google.appengine.runtime.apiproxy_errors import DeadlineExceededError
 
 
 """ A function meant to be used as a decorator that automatically makes a
@@ -23,7 +24,7 @@ def retry_on_error(function):
     # Try it and see if it works.
     try:
       return function(self, *args, **kwargs)
-    except (httplib.HTTPException, urlfetch.DeadlineExceededError, socket.error) as error:
+    except (httplib.HTTPException, DeadlineExceededError, socket.error) as error:
       logging.exception("Failed to make request, retrying later.")
 
       _, _, _, query_string, _ = urlparse.urlsplit(self.request.url)
