@@ -25,7 +25,8 @@ class MainHandler(webapp2.RequestHandler):
 
 class BaseHandler(webapp2.RequestHandler):
   # GAE apps that are allowed to use this API.
-  _AUTHORIZED_APPS = ("hd-signup-hrd", "signup-dev", "hd-events-hrd")
+  _AUTHORIZED_APPS = ("hd-signup-hrd", "signup-dev", "hd-events-hrd",
+                      "hd-signin-hrd")
   # Names of task queues that are allowed to use this API.
   _AUTHORIZED_QUEUES = ("retry-queue", "__cron")
 
