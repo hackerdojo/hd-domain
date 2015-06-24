@@ -40,7 +40,7 @@ def retry_on_error(function):
 
         # Add a task for retrying the action.
         taskqueue.add(queue_name="retry-queue",
-            url="%s?%s" % (self.request.path, urllib.urlencode(params)),
+            url=self.request.path, params=params,
             countdown=30, method=action)
       else:
         logging.debug("Not adding a new task for subsequent failure.")
