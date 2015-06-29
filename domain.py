@@ -175,7 +175,7 @@ class Domain:
     return [email.split("@")[0] for email in emails]
 
   """ Lists all the users on the domain.
-  Returns: A list of the usernames of all the non-suspended users. """
+  Returns: A list of the usernames of all the users. """
   def list_users(self):
     request = self.users.list(domain=self.domain)
     pages = self.__get_all_pages(request, self.users.list_next)
@@ -184,8 +184,7 @@ class Domain:
     for page in pages:
       users.extend(page["users"])
 
-    return [u["primaryEmail"].split("@")[0]
-            for u in users if not u["suspended"]]
+    return [u["primaryEmail"].split("@")[0] for u in users]
 
   """ Gets information for a specific user.
   username: The username of the user to get information for.
