@@ -108,13 +108,18 @@ def get_external(external):
 
 """ Runs all the unit tests.
 sdk_path: The path to the appengine sdk.
+cli_args: Arguments passed to deploy.py.
 Returns: True or False depending on whether tests succeed. """
-def run_tests(sdk_path, *args):
+def run_tests(sdk_path, cli_args, *args):
   sys.path.insert(0, sdk_path)
   import dev_appserver
   dev_appserver.fix_sys_path()
 
-  suite = unittest.loader.TestLoader().discover("tests")
+  if cli_args.travis:
+    # We only want tests in the travis subdirectory.
+    suite = unittest.loader.TestLoader().discover("tests/travis")
+  else:
+    suite = unittest.loader.TestLoader().discover("tests")
   test_result = unittest.TextTestRunner(verbosity=2).run(suite)
   if not test_result.wasSuccessful():
     print "ERROR: Unit tests failed."
@@ -127,7 +132,7 @@ sdk_location: Path to the GAE sdk.
 args: Options from the command line.
 forward_args: Arguments to forward to dev_appserver. """
 def dev_server(sdk_location, args, forward_args):
-  if (not run_tests(sdk_location) and not args.force):
+  if (not run_tests(sdk_location, args) and not args.force):
     os._exit(1)
 
   command = [os.path.join(sdk_location, "dev_appserver.py"), "app.yaml"]
@@ -143,7 +148,7 @@ sdk_location: Path to the GAE sdk.
 args: Options from the command line.
 forward_args: Arguments to forward to appcfg. """
 def gae_update(sdk_location, args, forward_args):
-  if (not run_tests(sdk_location) and not args.force):
+  if (not run_tests(sdk_location, args) and not args.force):
     os._exit(1)
 
   command = [os.path.join(sdk_location, "appcfg.py"), "update", "app.yaml"]
