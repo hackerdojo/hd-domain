@@ -48,7 +48,7 @@ class RetryOnErrorTests(unittest.TestCase):
                                  expect_errors=True)
     self.assertEqual(500, response.status_int)
 
-    tasks = self.task_queue_stub.GetTasks("retry-queue")
+    tasks = self.task_queue_stub.GetTasks("request-retry-queue")
     self.assertEqual(1, len(tasks))
     # Make sure that our task url looks good.
     good_url = "/test?fail=True&retried=True"
@@ -59,7 +59,7 @@ class RetryOnErrorTests(unittest.TestCase):
   def test_success_no_action(self):
     response = self.test_app.get("/test")
 
-    tasks = self.task_queue_stub.GetTasks("retry-queue")
+    tasks = self.task_queue_stub.GetTasks("request-retry-queue")
     self.assertEqual(0, len(tasks))
 
   """ Tests that it doesn't add the task again if there are multiple failures.
@@ -68,5 +68,5 @@ class RetryOnErrorTests(unittest.TestCase):
     response = self.test_app.get("/test",
         params={"fail": True, "retried": True}, expect_errors=True)
 
-    tasks = self.task_queue_stub.GetTasks("retry-queue")
+    tasks = self.task_queue_stub.GetTasks("request-retry-queue")
     self.assertEqual(0, len(tasks))

@@ -1,7 +1,8 @@
 total_storage_limit: 120M
 
 queue:
-- name: retry-queue
-  rate: 1/m
+- name: request-retry-queue
+  rate: 1/s
   retry_parameters:
     min_backoff_seconds: 30
+    task_retry_limit: 10
