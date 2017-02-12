@@ -8,11 +8,13 @@ handlers:
 - url: /robots.txt
   static_files: robots.txt
   upload: robots.txt
+  secure: always
 - url: /auth/.*
   script: auth.py
+  secure: always
 - url: .*
   script: main.app
-
+  secure: always
 builtins:
 - deferred: on
 
